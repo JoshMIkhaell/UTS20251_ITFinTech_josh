@@ -5,7 +5,7 @@ import { Xendit } from 'xendit-node';
 
 const xenditClient = new Xendit({ secretKey: process.env.XENDIT_SECRET_KEY });
 const { Invoice } = xenditClient;
-const invoiceClient = new Invoice({});
+const invoiceClient = Invoice;
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -31,24 +31,37 @@ export default async function handler(req, res) {
     });
 
     // create checkout in DB
+    if (total <= 0) {
+      return res.status(400).json({ error: 'tidak ada item valid untuk diproses' });
+    }
+
     const ch = await Checkout.create({ items: checkoutItems, total, status: 'PENDING' });
 
-    const externalID = `checkout_${ch._id.toString()}`;
+    const externalId = `checkout_${ch._id.toString()}`;
 
     // create xendit invoice (payment link)
     const resp = await invoiceClient.createInvoice({
-      externalID,                                  // camelCase as in node SDK examples
-      payerEmail: payer_email || 'customer@example.com',
-      amount: total,
-      description: `Checkout ${ch._id}`,
-      successRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment?checkoutId=${ch._id}`,
-      failureRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout?checkoutId=${ch._id}`,
-      shouldSendEmail: false
+      data: {
+        externalId,
+        payerEmail: payer_email || 'customer@example.com',
+        amount: total,
+        description: `Checkout ${ch._id}`,
+        successRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment?checkoutId=${ch._id}`,
+        failureRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout?checkoutId=${ch._id}`,
+        shouldSendEmail: false,
+        items: checkoutItems
+          .filter((item) => item && item.name && item.price > 0)
+          .map((item) => ({
+            name: item.name,
+            quantity: item.qty,
+            price: item.price,
+          })),
+      },
     });
 
     // save xendit info into checkout
     await Checkout.findByIdAndUpdate(ch._id, {
-      externalId: externalID,
+      externalId,
       xenditInvoiceId: resp.id || resp.invoice_id || resp.external_id || null,
       invoiceUrl: resp.invoice_url || resp.invoiceUrl || resp.url || null,
       rawXendit: resp

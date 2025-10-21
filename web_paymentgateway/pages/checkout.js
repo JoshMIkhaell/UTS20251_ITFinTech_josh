@@ -16,7 +16,7 @@ export default function CheckoutPage() {
 
   const items = Object.entries(cart).map(([id, qty]) => {
     const product = products.find((p) => p._id === id);
-    return { product, qty };
+    return { product, qty, id };
   });
 
   const total = items.reduce(
@@ -26,7 +26,12 @@ export default function CheckoutPage() {
 
   async function handlePay(e) {
     e.preventDefault();
-    const payloadItems = items.map((i) => ({
+    const validItems = items.filter((i) => i.product);
+    if (validItems.length === 0) {
+      alert("Keranjang kosong atau produk tidak ditemukan.");
+      return;
+    }
+    const payloadItems = validItems.map((i) => ({
       productId: i.product._id,
       qty: i.qty,
     }));
@@ -48,8 +53,25 @@ export default function CheckoutPage() {
       <h1>Checkout</h1>
       <ul>
         {items.map((i) => (
-          <li key={i.product?._id}>
-            {i.product?.name} x {i.qty} = Rp {i.product?.price * i.qty}
+          <li
+            key={i.product?._id || i.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 8,
+            }}
+          >
+            {i.product?.image ? (
+              <img
+                src={i.product.image}
+                alt={i.product.name}
+                style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 4 }}
+              />
+            ) : null}
+            <span>
+              {i.product?.name} x {i.qty} = Rp {i.product?.price * i.qty}
+            </span>
           </li>
         ))}
       </ul>

@@ -51,7 +51,28 @@ export default function Home() {
         }}
       >
         {products.map((p) => (
-          <div key={p._id} style={{ border: "1px solid #ccc", padding: 12 }}>
+          <div
+            key={p._id}
+            style={{
+              border: "1px solid #ccc",
+              padding: 12,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {p.image ? (
+              <img
+                src={p.image}
+                alt={p.name}
+                style={{
+                  width: "100%",
+                  height: 140,
+                  objectFit: "cover",
+                  borderRadius: 4,
+                }}
+              />
+            ) : null}
             <h3>{p.name}</h3>
             <p>Rp {p.price}</p>
             <button onClick={() => addToCart(p._id)}>Add</button>
