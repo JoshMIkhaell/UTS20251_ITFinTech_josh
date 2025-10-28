@@ -188,7 +188,9 @@ export default function Home() {
       </div>
 
       <div style={styles.productsGrid}>
-        {products.map((p) => {
+        {Array.isArray(products) &&
+  products.map((p) => {
+
           const isHovered = hoveredCard === p._id;
           
           return (
