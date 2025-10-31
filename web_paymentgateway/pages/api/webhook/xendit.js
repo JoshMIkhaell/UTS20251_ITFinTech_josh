@@ -1,7 +1,8 @@
+// pages/api/webhook/xendit.js
 import dbConnect from "../../../lib/mongodb";
 import Checkout from "../../../models/Checkout";
+import { sendWhatsapp } from "../../../lib/wa";
 
-// ✅ Nonaktifkan body parser bawaan Next.js agar raw body bisa dibaca
 export const config = {
   api: {
     bodyParser: false,
@@ -15,7 +16,6 @@ export default async function handler(req, res) {
   await dbConnect();
 
   try {
-    // ✅ Baca raw body (wajib untuk Xendit)
     const rawBody = await new Promise((resolve) => {
       let data = "";
       req.on("data", (chunk) => (data += chunk));
@@ -23,11 +23,9 @@ export default async function handler(req, res) {
     });
 
     const event = JSON.parse(rawBody);
-
     console.log("=== XENDIT WEBHOOK RECEIVED ===");
     console.log(JSON.stringify(event, null, 2));
 
-    // ✅ Verifikasi token (jika kamu aktifkan di Xendit)
     const callbackToken = req.headers["x-callback-token"];
     if (
       process.env.XENDIT_CALLBACK_TOKEN &&
@@ -43,32 +41,47 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing external_id" });
     }
 
-    // ✅ Cek data di database
     let checkout = await Checkout.findOne({ external_id: externalId });
     console.log("Existing checkout:", checkout);
 
-    // ✅ Jika belum ada, buat baru
     if (!checkout) {
       checkout = await Checkout.create({
         external_id: externalId,
         amount: event.amount || 0,
         status: event.status === "PAID" ? "LUNAS" : "PENDING",
-        payment_method: event.payment_method || event.payment_channel || "unknown",
+        payment_method:
+          event.payment_method || event.payment_channel || "unknown",
         paid_at: event.paid_at ? new Date(event.paid_at) : null,
       });
       console.log("✅ Checkout created:", checkout);
     } else {
-      // ✅ Jika sudah ada dan status PAID, update jadi LUNAS
       if (event.status === "PAID") {
         checkout.status = "LUNAS";
         checkout.paid_at = new Date(event.paid_at || Date.now());
-        checkout.payment_method = event.payment_method || event.payment_channel;
+        checkout.payment_method =
+          event.payment_method || event.payment_channel;
         await checkout.save();
         console.log(`✅ Checkout ${externalId} updated to LUNAS`);
       }
     }
 
-    // ✅ Xendit butuh respons cepat (maks 3 detik)
+    // ✅ Kirim notifikasi ke WA kamu sendiri
+    console.log("Webhook status diterima:", event.status);
+
+    const phoneNumber = "6281350052110"; // ganti dengan nomor kamu di Fonnte
+
+    if (["PENDING", "INVOICE_PENDING"].includes(event.status)) {
+      await sendWhatsapp(
+        phoneNumber,
+        `🔔 *PAYMENT PENDING*\nPesanan *${externalId}* sedang menunggu pembayaran.\n\nStatus: ${event.status}\nJumlah: Rp ${event.amount?.toLocaleString("id-ID")}`
+      );
+    } else if (["PAID", "INVOICE_PAID"].includes(event.status)) {
+      await sendWhatsapp(
+        phoneNumber,
+        `✅ *PAYMENT SUCCESS*\nPesanan *${externalId}* sudah dibayar!\n\nJumlah: Rp ${event.amount?.toLocaleString("id-ID")}\nMetode: ${event.payment_method || event.payment_channel}`
+      );
+    }
+
     res.status(200).json({ received: true });
   } catch (err) {
     console.error("❌ Webhook error:", err);

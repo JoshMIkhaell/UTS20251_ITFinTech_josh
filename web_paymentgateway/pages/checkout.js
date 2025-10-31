@@ -16,10 +16,19 @@ export default function CheckoutPage() {
       .then((data) => setProducts(data || []));
   }, []);
 
+  // Update cart di localStorage setiap kali cart berubah
+  useEffect(() => {
+    if (Object.keys(cart).length > 0) {
+      localStorage.setItem("cart", JSON.stringify(cart));
+    } else {
+      localStorage.removeItem("cart");
+    }
+  }, [cart]);
+
   const items = Object.entries(cart).map(([id, qty]) => {
     const product = products.find((p) => p._id === id);
     return { product, qty, id };
-  });
+  }).filter(i => i.product); // Filter out items tanpa product
 
   const subtotal = items.reduce(
     (s, i) => s + (i.product?.price || 0) * i.qty,
@@ -28,18 +37,46 @@ export default function CheckoutPage() {
   const tax = subtotal * 0.11; // PPN 11%
   const total = subtotal + tax;
 
+  // Function untuk update quantity
+  function updateQuantity(productId, newQty) {
+    if (newQty <= 0) {
+      removeItem(productId);
+      return;
+    }
+    setCart(prev => ({
+      ...prev,
+      [productId]: newQty
+    }));
+  }
+
+  // Function untuk hapus item
+  function removeItem(productId) {
+    setCart(prev => {
+      const newCart = { ...prev };
+      delete newCart[productId];
+      return newCart;
+    });
+  }
+
+  // Function untuk clear cart
+  function clearCart() {
+    if (confirm("Hapus semua item dari keranjang?")) {
+      setCart({});
+      localStorage.removeItem("cart");
+    }
+  }
+
   async function handlePay(e) {
     e.preventDefault();
     setIsProcessing(true);
     
-    const validItems = items.filter((i) => i.product);
-    if (validItems.length === 0) {
-      alert("Keranjang kosong atau produk tidak ditemukan.");
+    if (items.length === 0) {
+      alert("Keranjang kosong.");
       setIsProcessing(false);
       return;
     }
     
-    const payloadItems = validItems.map((i) => ({
+    const payloadItems = items.map((i) => ({
       productId: i.product._id,
       qty: i.qty,
     }));
@@ -52,6 +89,8 @@ export default function CheckoutPage() {
       }).then((r) => r.json());
 
       if (resp.invoice_url) {
+        // Clear cart setelah sukses
+        localStorage.removeItem("cart");
         window.location.href = resp.invoice_url;
       } else {
         alert("Gagal membuat invoice");
@@ -71,7 +110,7 @@ export default function CheckoutPage() {
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     },
     wrapper: {
-      maxWidth: 900,
+      maxWidth: 1100,
       margin: "0 auto",
     },
     header: {
@@ -83,6 +122,8 @@ export default function CheckoutPage() {
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: 16,
     },
     title: {
       margin: 0,
@@ -91,6 +132,10 @@ export default function CheckoutPage() {
       background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       WebkitBackgroundClip: "text",
       WebkitTextFillColor: "transparent",
+    },
+    headerActions: {
+      display: "flex",
+      gap: 12,
     },
     backLink: {
       display: "inline-flex",
@@ -106,10 +151,19 @@ export default function CheckoutPage() {
       transition: "all 0.3s ease",
       border: "2px solid #667eea",
     },
-    contentGrid: {
-      display: "grid",
-      gridTemplateColumns: "1fr",
-      gap: 24,
+    clearButton: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "10px 20px",
+      background: "#fee2e2",
+      color: "#991b1b",
+      border: "2px solid #fca5a5",
+      borderRadius: 20,
+      fontWeight: 600,
+      fontSize: 14,
+      cursor: "pointer",
+      transition: "all 0.3s ease",
     },
     card: {
       background: "white",
@@ -140,6 +194,7 @@ export default function CheckoutPage() {
       borderRadius: 12,
       marginBottom: 12,
       transition: "all 0.2s ease",
+      position: "relative",
     },
     itemImage: {
       width: 80,
@@ -163,7 +218,7 @@ export default function CheckoutPage() {
       flex: 1,
       display: "flex",
       flexDirection: "column",
-      gap: 4,
+      gap: 8,
     },
     itemName: {
       fontSize: 18,
@@ -171,15 +226,65 @@ export default function CheckoutPage() {
       color: "#2d3748",
       margin: 0,
     },
-    itemQty: {
-      fontSize: 14,
-      color: "#718096",
+    quantityControl: {
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
     },
-    itemPrice: {
+    qtyButton: {
+      width: 32,
+      height: 32,
+      border: "2px solid #667eea",
+      background: "white",
+      color: "#667eea",
+      borderRadius: 8,
       fontSize: 18,
       fontWeight: 700,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s",
+    },
+    qtyDisplay: {
+      minWidth: 40,
+      textAlign: "center",
+      fontSize: 16,
+      fontWeight: 600,
+      color: "#2d3748",
+    },
+    priceSection: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 8,
+    },
+    itemPrice: {
+      fontSize: 20,
+      fontWeight: 700,
       color: "#667eea",
-      textAlign: "right",
+    },
+    unitPrice: {
+      fontSize: 12,
+      color: "#718096",
+    },
+    removeButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      width: 28,
+      height: 28,
+      border: "2px solid #fca5a5",
+      background: "#fee2e2",
+      color: "#991b1b",
+      borderRadius: "50%",
+      fontSize: 16,
+      fontWeight: 700,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s",
     },
     summaryCard: {
       background: "white",
@@ -293,7 +398,7 @@ export default function CheckoutPage() {
     },
   };
 
-  if (items.length === 0 || items.every(i => !i.product)) {
+  if (items.length === 0) {
     return (
       <div style={styles.container}>
         <div style={styles.wrapper}>
@@ -323,14 +428,21 @@ export default function CheckoutPage() {
       <div style={styles.wrapper}>
         <div style={styles.header}>
           <h1 style={styles.title}>🛒 Checkout</h1>
-          <Link href="/" style={styles.backLink}>
-            ← Back to Shop
-          </Link>
+          <div style={styles.headerActions}>
+            {items.length > 0 && (
+              <button onClick={clearCart} style={styles.clearButton}>
+                🗑️ Clear Cart
+              </button>
+            )}
+            <Link href="/" style={styles.backLink}>
+              ← Back to Shop
+            </Link>
+          </div>
         </div>
 
         <div style={{
           display: "grid",
-          gridTemplateColumns: window.innerWidth > 768 ? "1.5fr 1fr" : "1fr",
+          gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth > 768 ? "1.5fr 1fr" : "1fr",
           gap: 24,
         }}>
           {/* Items List */}
@@ -340,11 +452,24 @@ export default function CheckoutPage() {
             </h2>
             <ul style={styles.itemsList}>
               {items.map((i) => (
-                <li
-                  key={i.product?._id || i.id}
-                  style={styles.itemCard}
-                >
-                  {i.product?.image ? (
+                <li key={i.id} style={styles.itemCard}>
+                  <button
+                    onClick={() => removeItem(i.id)}
+                    style={styles.removeButton}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = "#fca5a5";
+                      e.currentTarget.style.transform = "scale(1.1)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = "#fee2e2";
+                      e.currentTarget.style.transform = "scale(1)";
+                    }}
+                    title="Remove item"
+                  >
+                    ✕
+                  </button>
+
+                  {i.product.image ? (
                     <img
                       src={i.product.image}
                       alt={i.product.name}
@@ -355,12 +480,48 @@ export default function CheckoutPage() {
                   )}
                   
                   <div style={styles.itemDetails}>
-                    <h3 style={styles.itemName}>{i.product?.name}</h3>
-                    <p style={styles.itemQty}>Quantity: {i.qty}</p>
+                    <h3 style={styles.itemName}>{i.product.name}</h3>
+                    
+                    <div style={styles.quantityControl}>
+                      <button
+                        onClick={() => updateQuantity(i.id, i.qty - 1)}
+                        style={styles.qtyButton}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = "#667eea";
+                          e.currentTarget.style.color = "white";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.style.color = "#667eea";
+                        }}
+                      >
+                        −
+                      </button>
+                      <span style={styles.qtyDisplay}>{i.qty}</span>
+                      <button
+                        onClick={() => updateQuantity(i.id, i.qty + 1)}
+                        style={styles.qtyButton}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = "#667eea";
+                          e.currentTarget.style.color = "white";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.style.color = "#667eea";
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   
-                  <div style={styles.itemPrice}>
-                    Rp {((i.product?.price || 0) * i.qty).toLocaleString('id-ID')}
+                  <div style={styles.priceSection}>
+                    <div style={styles.itemPrice}>
+                      Rp {((i.product.price || 0) * i.qty).toLocaleString('id-ID')}
+                    </div>
+                    <div style={styles.unitPrice}>
+                      @ Rp {(i.product.price || 0).toLocaleString('id-ID')}
+                    </div>
                   </div>
                 </li>
               ))}

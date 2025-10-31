@@ -1,20 +1,38 @@
-// wa.js
-import twilio from 'twilio';
+// lib/wa.js
+import axios from "axios";
 
-const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
-
-export async function sendWhatsapp(to, message) {
+export async function sendWhatsapp(phoneNumber, message) {
   try {
-    const formattedTo = `whatsapp:+${to.replace(/^0/, '62')}`; // otomatis ubah format
+    // Hapus spasi, tanda hubung, dan tanda kurung
+    let formattedNumber = phoneNumber.replace(/[\s\-\(\)]/g, "");
 
-    const msg = await client.messages.create({
-      from: 'whatsapp:+14155238886', // nomor Twilio sandbox
-      to: formattedTo,
-      body: message
-    });
+    // Jika nomor diawali 0 → ubah jadi 62
+    if (formattedNumber.startsWith("0")) {
+      formattedNumber = "62" + formattedNumber.slice(1);
+    }
 
-    console.log('WA terkirim:', msg.sid);
+    // Hilangkan tanda +
+    if (formattedNumber.startsWith("+")) {
+      formattedNumber = formattedNumber.slice(1);
+    }
+
+    const response = await axios.post(
+      "https://api.fonnte.com/send",
+      {
+        target: formattedNumber,
+        message: message,
+      },
+      {
+        headers: {
+          Authorization: process.env.FONNTE_TOKEN,
+        },
+      }
+    );
+
+    console.log("WA terkirim:", response.data);
+    return response.data;
   } catch (error) {
-    console.error('Gagal kirim WA:', error.message);
+    console.error("Gagal mengirim WA:", error.response?.data || error.message);
+    throw error;
   }
 }

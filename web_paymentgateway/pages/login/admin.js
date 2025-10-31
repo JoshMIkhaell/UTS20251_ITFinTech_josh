@@ -2,38 +2,38 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/router';
 
-export default function RegisterPage() {
+export default function AdminLogin() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phoneNumber: '',
-  });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleLogin(e) {
     e.preventDefault();
-    setMessage('');
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
-      const res = await axios.post('/api/auth/register', {
-        ...form,
-        role: 'customer' // Registrasi hanya untuk customer
+      const res = await axios.post('/api/auth/login', {
+        email: form.email,
+        password: form.password,
       });
-      
-      setMessage('✅ Registrasi berhasil! Mengalihkan ke login...');
-      
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
+
+      if (res.data.isAdmin) {
+        setMessage('✅ Login admin berhasil! Mengalihkan...');
+        localStorage.setItem('admin-token', res.data.token);
+        
+        setTimeout(() => {
+          router.push('/admin/dashboard');
+        }, 1000);
+      } else {
+        setError('Akun ini bukan admin. Silakan login sebagai customer.');
+      }
 
     } catch (err) {
-      setError(err.response?.data?.error || 'Gagal registrasi. Silakan coba lagi.');
+      setError(err.response?.data?.error || 'Login gagal. Periksa email dan password.');
     } finally {
       setLoading(false);
     }
@@ -50,38 +50,21 @@ export default function RegisterPage() {
 
         <div className="container">
           <div className="logo-section">
-            <div className="logo">📝</div>
-            <h2>Daftar Akun Baru</h2>
-            <p className="subtitle">Buat akun untuk mulai berbelanja</p>
+            <div className="logo">👨‍💼</div>
+            <h2>Login Admin</h2>
+            <p className="subtitle">Masuk ke dashboard admin</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="register-form">
-            <div className="input-group">
-              <label htmlFor="name">
-                <span className="label-icon">👤</span>
-                Nama Lengkap
-              </label>
-              <input
-                id="name"
-                type="text"
-                placeholder="Masukkan nama lengkap"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                disabled={loading}
-                autoComplete="name"
-              />
-            </div>
-
+          <form onSubmit={handleLogin} className="login-form">
             <div className="input-group">
               <label htmlFor="email">
                 <span className="label-icon">📧</span>
-                Email
+                Email Admin
               </label>
               <input
                 id="email"
                 type="email"
-                placeholder="contoh@email.com"
+                placeholder="admin@example.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
@@ -98,51 +81,30 @@ export default function RegisterPage() {
               <input
                 id="password"
                 type="password"
-                placeholder="Minimal 6 karakter"
+                placeholder="Masukkan password admin"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
                 disabled={loading}
-                autoComplete="new-password"
-                minLength="6"
+                autoComplete="current-password"
               />
-              <small className="input-hint">Minimal 6 karakter</small>
             </div>
 
-            <div className="input-group">
-              <label htmlFor="phone">
-                <span className="label-icon">📱</span>
-                Nomor WhatsApp
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                placeholder="08123456789"
-                value={form.phoneNumber}
-                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-                required
-                disabled={loading}
-                autoComplete="tel"
-              />
-              <small className="input-hint">Contoh: 08123456789 atau +628123456789</small>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn-primary">
+            <button type="submit" disabled={loading} className="btn-primary admin">
               {loading ? (
                 <>
                   <span className="spinner"></span>
-                  Mendaftar...
+                  Memproses...
                 </>
               ) : (
                 <>
                   <span>🚀</span>
-                  Daftar Sekarang
+                  Login Admin
                 </>
               )}
             </button>
           </form>
 
-          {/* ===== Pesan Success/Error ===== */}
           {message && (
             <div className="alert success">
               <span className="alert-icon">✓</span>
@@ -156,11 +118,9 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ===== Link Login ===== */}
           <div className="footer">
-            <p>Sudah punya akun?</p>
             <a href="/login" className="link">
-              Login di sini →
+              ← Kembali ke pilihan login
             </a>
           </div>
         </div>
@@ -179,10 +139,10 @@ export default function RegisterPage() {
           align-items: center;
           justify-content: center;
           padding: 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
           position: relative;
           overflow: hidden;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
         }
 
         .background-decoration {
@@ -208,7 +168,6 @@ export default function RegisterPage() {
           height: 300px;
           top: -100px;
           left: -100px;
-          animation-delay: 0s;
         }
 
         .circle-2 {
@@ -240,7 +199,7 @@ export default function RegisterPage() {
 
         .container {
           width: 100%;
-          max-width: 480px;
+          max-width: 440px;
           position: relative;
           z-index: 1;
           background: rgba(255, 255, 255, 0.98);
@@ -272,41 +231,28 @@ export default function RegisterPage() {
         .logo {
           font-size: 64px;
           margin-bottom: 16px;
-          animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.05);
-          }
         }
 
         h2 {
           font-size: 32px;
           font-weight: 800;
           margin-bottom: 8px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
-          line-height: 1.2;
         }
 
         .subtitle {
           color: #64748b;
           font-size: 15px;
           font-weight: 500;
-          margin: 0;
-          line-height: 1.5;
         }
         
-        .register-form {
+        .login-form {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 24px;
         }
 
         .input-group {
@@ -323,10 +269,6 @@ export default function RegisterPage() {
           align-items: center;
           gap: 6px;
         }
-
-        .label-icon {
-          font-size: 16px;
-        }
         
         input {
           width: 100%;
@@ -334,32 +276,13 @@ export default function RegisterPage() {
           border: 2px solid #e2e8f0;
           border-radius: 12px;
           font-size: 16px;
-          box-sizing: border-box;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          background: white;
-          font-family: inherit;
+          transition: all 0.3s;
         }
         
         input:focus {
-          border-color: #667eea;
+          border-color: #f59e0b;
           outline: none;
-          box-shadow: 
-            0 0 0 4px rgba(102, 126, 234, 0.1),
-            0 4px 12px rgba(102, 126, 234, 0.2);
-          transform: translateY(-2px);
-        }
-
-        input:disabled {
-          background-color: #f1f5f9;
-          cursor: not-allowed;
-          opacity: 0.7;
-        }
-
-        .input-hint {
-          font-size: 12px;
-          color: #94a3b8;
-          font-style: italic;
-          display: block;
+          box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
         }
 
         .btn-primary {
@@ -372,43 +295,20 @@ export default function RegisterPage() {
           font-size: 17px;
           font-weight: 700;
           cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          margin-top: 8px;
+          transition: all 0.2s;
         }
-        
-        .btn-primary:hover:not(:disabled) {
+
+        .btn-primary.admin {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .btn-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn-primary:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .btn-primary:disabled {
-          background: #cbd5e1;
-          cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
-        }
-
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          display: inline-block;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
         }
 
         .alert {
@@ -420,39 +320,20 @@ export default function RegisterPage() {
           display: flex;
           align-items: center;
           gap: 10px;
-          animation: slideIn 0.3s ease-out;
-          line-height: 1.5;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        .alert-icon {
-          font-size: 20px;
-          font-weight: 900;
-          flex-shrink: 0;
         }
         
         .success {
           color: #065f46;
-          background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+          background: #d1fae5;
           border: 2px solid #6ee7b7;
         }
         
         .error {
           color: #991b1b;
-          background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+          background: #fee2e2;
           border: 2px solid #fca5a5;
         }
-        
+
         .footer {
           margin-top: 32px;
           text-align: center;
@@ -460,45 +341,26 @@ export default function RegisterPage() {
           border-top: 2px solid #f1f5f9;
         }
 
-        .footer p {
-          font-size: 14px;
-          color: #64748b;
-          margin: 0 0 8px 0;
-          font-weight: 500;
-        }
-
         .link {
-          color: #667eea;
+          color: #f59e0b;
           text-decoration: none;
           font-size: 15px;
           font-weight: 700;
-          transition: all 0.2s;
-          display: inline-block;
-        }
-        
-        .link:hover {
-          color: #764ba2;
-          transform: translateX(4px);
         }
 
-        @media (max-width: 480px) {
-          .container {
-            padding: 28px 24px;
-          }
+        .spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-top-color: white;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
 
-          h2 {
-            font-size: 28px;
-          }
-
-          .logo {
-            font-size: 56px;
-          }
-
-          .page-wrapper {
-            padding: 16px;
-          }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>
   );
-}   
+}
